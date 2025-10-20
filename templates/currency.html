@@ -1,0 +1,465 @@
+{% extends "base.html" %}
+
+{% block title %}Convertidor de Divisas{% endblock %}
+
+{% block extra_head %}
+<style>
+    .currency-tools {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+    
+    .tools-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .tool-card {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e2e8f0;
+    }
+    
+    .tool-title {
+        color: var(--primary-color);
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .converter-form {
+        display: grid;
+        gap: 1rem;
+    }
+    
+    .currency-input-group {
+        position: relative;
+    }
+    
+    .currency-selector {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+    
+    .currency-select {
+        min-width: 100px;
+        padding: 0.75rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 1rem;
+        background: white;
+    }
+    
+    .amount-input {
+        flex: 1;
+        padding: 0.75rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 1.1rem;
+        text-align: right;
+    }
+    
+    .convert-result {
+        background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+        border: 2px solid #0ea5e9;
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        margin-top: 1rem;
+    }
+    
+    .result-amount {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--primary-color);
+        margin-bottom: 0.5rem;
+    }
+    
+    .exchange-rate {
+        font-size: 0.9rem;
+        color: #64748b;
+    }
+    
+    .swap-btn {
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        margin: 0 auto;
+        transition: all 0.3s ease;
+    }
+    
+    .swap-btn:hover {
+        background: var(--primary-dark);
+        transform: rotate(180deg);
+    }
+    
+    .rates-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+    }
+    
+    .rates-table th,
+    .rates-table td {
+        padding: 1rem;
+        text-align: left;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .rates-table th {
+        background: #f8fafc;
+        font-weight: 600;
+        color: var(--dark-color);
+    }
+    
+    .currency-flag {
+        width: 24px;
+        height: 18px;
+        border-radius: 2px;
+        margin-right: 0.5rem;
+    }
+    
+    .rate-change {
+        font-size: 0.8rem;
+        font-weight: 600;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+    }
+    
+    .rate-up {
+        background: #dcfce7;
+        color: #059669;
+    }
+    
+    .rate-down {
+        background: #fef2f2;
+        color: #dc2626;
+    }
+    
+    .loading-rates {
+        text-align: center;
+        padding: 2rem;
+        color: #64748b;
+    }
+    
+    .last-update {
+        text-align: center;
+        color: #64748b;
+        font-size: 0.9rem;
+        margin-top: 1rem;
+    }
+    
+    @media (max-width: 768px) {
+        .tools-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .currency-tools {
+            padding: 1rem;
+        }
+        
+        .tool-card {
+            padding: 1.5rem;
+        }
+        
+        .currency-selector {
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        
+        .result-amount {
+            font-size: 1.5rem;
+        }
+        
+        .rates-table {
+            font-size: 0.9rem;
+        }
+        
+        .rates-table th,
+        .rates-table td {
+            padding: 0.75rem 0.5rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="currency-tools">
+    <div class="page-header">
+        <h1>
+            <i class="fas fa-exchange-alt"></i>
+            Convertidor de Divisas
+        </h1>
+        <p>Convierte entre diferentes monedas y consulta las cotizaciones actuales</p>
+    </div>
+    
+    <div class="tools-grid">
+        <!-- Convertidor de Divisas -->
+        <div class="tool-card">
+            <h2 class="tool-title">
+                <i class="fas fa-calculator"></i>
+                Convertidor
+            </h2>
+            
+            <div class="converter-form">
+                <div class="currency-input-group">
+                    <label>Desde:</label>
+                    <div class="currency-selector">
+                        <select id="fromCurrency" class="currency-select">
+                            <option value="USD" selected>🇺🇸 USD - Dólar</option>
+                            <option value="EUR">🇪🇺 EUR - Euro</option>
+                            <option value="MXN">🇲🇽 MXN - Peso</option>
+                            <option value="GBP">🇬🇧 GBP - Libra</option>
+                            <option value="JPY">🇯🇵 JPY - Yen</option>
+                            <option value="CAD">🇨🇦 CAD - Dólar Canadiense</option>
+                            <option value="AUD">🇦🇺 AUD - Dólar Australiano</option>
+                            <option value="CHF">🇨🇭 CHF - Franco Suizo</option>
+                        </select>
+                        <input type="number" id="fromAmount" class="amount-input" placeholder="0.00" step="0.01" value="1">
+                    </div>
+                </div>
+                
+                <button class="swap-btn" onclick="swapCurrencies()">
+                    <i class="fas fa-exchange-alt"></i>
+                </button>
+                
+                <div class="currency-input-group">
+                    <label>Hacia:</label>
+                    <div class="currency-selector">
+                        <select id="toCurrency" class="currency-select">
+                            <option value="USD">🇺🇸 USD - Dólar</option>
+                            <option value="EUR">🇪🇺 EUR - Euro</option>
+                            <option value="MXN" selected>🇲🇽 MXN - Peso</option>
+                            <option value="GBP">🇬🇧 GBP - Libra</option>
+                            <option value="JPY">🇯🇵 JPY - Yen</option>
+                            <option value="CAD">🇨🇦 CAD - Dólar Canadiense</option>
+                            <option value="AUD">🇦🇺 AUD - Dólar Australiano</option>
+                            <option value="CHF">🇨🇭 CHF - Franco Suizo</option>
+                        </select>
+                        <input type="number" id="toAmount" class="amount-input" placeholder="0.00" step="0.01" readonly>
+                    </div>
+                </div>
+                
+                <div id="convertResult" class="convert-result" style="display: none;">
+                    <div class="result-amount" id="resultAmount">$0.00</div>
+                    <div class="exchange-rate" id="exchangeRate">Tipo de cambio: 1 USD = 0.00 MXN</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Cotizaciones en Tiempo Real -->
+        <div class="tool-card">
+            <h2 class="tool-title">
+                <i class="fas fa-chart-line"></i>
+                Cotizaciones
+            </h2>
+            
+            <div id="ratesLoading" class="loading-rates">
+                <i class="fas fa-spinner fa-spin"></i>
+                Cargando cotizaciones...
+            </div>
+            
+            <div id="ratesTable" style="display: none;">
+                <table class="rates-table">
+                    <thead>
+                        <tr>
+                            <th>Moneda</th>
+                            <th>Precio (USD)</th>
+                            <th>Cambio 24h</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ratesBody">
+                        <!-- Las filas se llenarán dinámicamente -->
+                    </tbody>
+                </table>
+                
+                <div class="last-update" id="lastUpdate">
+                    Última actualización: --
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let exchangeRates = {};
+
+// Inicializar página
+document.addEventListener('DOMContentLoaded', function() {
+    loadExchangeRates();
+    setupEventListeners();
+});
+
+function setupEventListeners() {
+    document.getElementById('fromAmount').addEventListener('input', convertCurrency);
+    document.getElementById('fromCurrency').addEventListener('change', convertCurrency);
+    document.getElementById('toCurrency').addEventListener('change', convertCurrency);
+}
+
+async function loadExchangeRates() {
+    try {
+        // Usar API gratuita de Exchange Rates
+        const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+        const data = await response.json();
+        
+        exchangeRates = data.rates;
+        
+        // Actualizar tabla de cotizaciones
+        updateRatesTable();
+        
+        // Realizar conversión inicial
+        convertCurrency();
+        
+    } catch (error) {
+        console.error('Error al cargar cotizaciones:', error);
+        showMessage('Error al cargar las cotizaciones. Usando valores por defecto.', 'warning');
+        
+        // Valores por defecto si falla la API
+        exchangeRates = {
+            'USD': 1,
+            'EUR': 0.85,
+            'MXN': 18.5,
+            'GBP': 0.73,
+            'JPY': 110,
+            'CAD': 1.25,
+            'AUD': 1.35,
+            'CHF': 0.92
+        };
+        
+        updateRatesTable();
+        convertCurrency();
+    }
+}
+
+function updateRatesTable() {
+    const popularCurrencies = ['EUR', 'MXN', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF'];
+    const currencyNames = {
+        'EUR': '🇪🇺 Euro',
+        'MXN': '🇲🇽 Peso Mexicano',
+        'GBP': '🇬🇧 Libra Esterlina',
+        'JPY': '🇯🇵 Yen Japonés',
+        'CAD': '🇨🇦 Dólar Canadiense',
+        'AUD': '🇦🇺 Dólar Australiano',
+        'CHF': '🇨🇭 Franco Suizo'
+    };
+    
+    const tbody = document.getElementById('ratesBody');
+    tbody.innerHTML = '';
+    
+    popularCurrencies.forEach(currency => {
+        if (exchangeRates[currency]) {
+            const rate = exchangeRates[currency];
+            const priceInUSD = (1 / rate).toFixed(4);
+            
+            // Simular cambio (en una implementación real vendría de la API)
+            const change = (Math.random() - 0.5) * 2; // Entre -1% y +1%
+            const changeClass = change >= 0 ? 'rate-up' : 'rate-down';
+            const changeIcon = change >= 0 ? '↗' : '↘';
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${currencyNames[currency]}</td>
+                <td>$${priceInUSD}</td>
+                <td>
+                    <span class="rate-change ${changeClass}">
+                        ${changeIcon} ${Math.abs(change).toFixed(2)}%
+                    </span>
+                </td>
+            `;
+            tbody.appendChild(row);
+        }
+    });
+    
+    document.getElementById('ratesLoading').style.display = 'none';
+    document.getElementById('ratesTable').style.display = 'block';
+    document.getElementById('lastUpdate').textContent = `Última actualización: ${new Date().toLocaleTimeString()}`;
+}
+
+function convertCurrency() {
+    const fromCurrency = document.getElementById('fromCurrency').value;
+    const toCurrency = document.getElementById('toCurrency').value;
+    const fromAmount = parseFloat(document.getElementById('fromAmount').value) || 0;
+    
+    if (fromAmount === 0 || !exchangeRates[fromCurrency] || !exchangeRates[toCurrency]) {
+        document.getElementById('toAmount').value = '';
+        document.getElementById('convertResult').style.display = 'none';
+        return;
+    }
+    
+    // Convertir: amount * (toCurrencyRate / fromCurrencyRate)
+    const fromRate = exchangeRates[fromCurrency];
+    const toRate = exchangeRates[toCurrency];
+    const convertedAmount = fromAmount * (toRate / fromRate);
+    
+    // Actualizar resultado
+    document.getElementById('toAmount').value = convertedAmount.toFixed(2);
+    
+    // Mostrar resultado detallado
+    const resultDiv = document.getElementById('convertResult');
+    const resultAmount = document.getElementById('resultAmount');
+    const exchangeRateText = document.getElementById('exchangeRate');
+    
+    resultAmount.textContent = formatCurrency(convertedAmount, toCurrency);
+    exchangeRateText.textContent = `Tipo de cambio: 1 ${fromCurrency} = ${(toRate / fromRate).toFixed(4)} ${toCurrency}`;
+    
+    resultDiv.style.display = 'block';
+}
+
+function swapCurrencies() {
+    const fromSelect = document.getElementById('fromCurrency');
+    const toSelect = document.getElementById('toCurrency');
+    const fromAmount = document.getElementById('fromAmount');
+    const toAmount = document.getElementById('toAmount');
+    
+    // Intercambiar monedas
+    const tempCurrency = fromSelect.value;
+    fromSelect.value = toSelect.value;
+    toSelect.value = tempCurrency;
+    
+    // Intercambiar montos
+    const tempAmount = fromAmount.value;
+    fromAmount.value = toAmount.value;
+    toAmount.value = tempAmount;
+    
+    // Convertir con nuevos valores
+    convertCurrency();
+}
+
+function formatCurrency(amount, currency) {
+    const symbols = {
+        'USD': '$',
+        'EUR': '€',
+        'MXN': '$',
+        'GBP': '£',
+        'JPY': '¥',
+        'CAD': 'C$',
+        'AUD': 'A$',
+        'CHF': 'CHF'
+    };
+    
+    const symbol = symbols[currency] || currency;
+    return `${symbol}${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+// Actualizar cotizaciones cada 5 minutos
+setInterval(loadExchangeRates, 5 * 60 * 1000);
+</script>
+{% endblock %}

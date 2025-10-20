@@ -1,0 +1,532 @@
+{% extends "base.html" %}
+
+{% block title %}Transacciones - Finanzas Personales{% endblock %}
+
+{% block content %}
+<div class="transactions-container">
+    <div class="page-header">
+        <h1>💳 Transacciones</h1>
+        <button onclick="openAddTransactionModal()" class="btn btn-primary">
+            ➕ Agregar Transacción
+        </button>
+    </div>
+    
+    <div class="filters-section">
+        <div class="filters">
+            <div class="filter-group">
+                <label for="monthFilter">Mes:</label>
+                <select id="monthFilter">
+                    <option value="">Todos los meses</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="typeFilter">Tipo:</label>
+                <select id="typeFilter">
+                    <option value="">Todos</option>
+                    <option value="ingreso">Ingresos</option>
+                    <option value="gasto">Gastos</option>
+                </select>
+            </div>
+            
+            <button onclick="applyFilters()" class="btn btn-outline">Aplicar Filtros</button>
+        </div>
+    </div>
+    
+    <div class="transactions-list">
+        <div id="transactionsList">
+            <div class="loading-message">Cargando transacciones...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para agregar/editar transacción -->
+<div id="transactionModal" class="modal modal-enhanced">
+    <div class="modal-backdrop" onclick="closeTransactionModal()"></div>
+    <div class="modal-content modal-enhanced-content">
+        <div class="modal-header modal-enhanced-header">
+            <div class="modal-title-section">
+                <div class="modal-icon">
+                    <i class="fas fa-plus-circle"></i>
+                </div>
+                <h3 id="modalTitle">Agregar Transacción</h3>
+            </div>
+            <button class="modal-close-btn" onclick="closeTransactionModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="modal-body modal-enhanced-body">
+            <form id="transactionForm">
+                <!-- Sección de tipo de transacción -->
+                <div class="transaction-type-selector">
+                    <div class="type-option" data-type="gasto">
+                        <input type="radio" id="typeGasto" name="tipo" value="gasto" checked>
+                        <label for="typeGasto">
+                            <i class="fas fa-arrow-down"></i>
+                            <span>Gasto</span>
+                        </label>
+                    </div>
+                    <div class="type-option" data-type="ingreso">
+                        <input type="radio" id="typeIngreso" name="tipo" value="ingreso">
+                        <label for="typeIngreso">
+                            <i class="fas fa-arrow-up"></i>
+                            <span>Ingreso</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Campos del formulario -->
+                <div class="form-grid">
+                    <div class="form-group form-enhanced">
+                        <label for="transactionDate">
+                            <i class="fas fa-calendar"></i>
+                            Fecha
+                        </label>
+                        <input type="date" id="transactionDate" name="fecha" required>
+                    </div>
+                    
+                    <div class="form-group form-enhanced">
+                        <label for="transactionAmount">
+                            <i class="fas fa-dollar-sign"></i>
+                            Monto
+                        </label>
+                        <div class="amount-input-wrapper">
+                            <span class="currency-symbol">$</span>
+                            <input type="number" id="transactionAmount" name="monto" step="0.01" min="0" required placeholder="0.00">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group form-enhanced">
+                    <label for="transactionCategory">
+                        <i class="fas fa-tags"></i>
+                        Categoría
+                    </label>
+                    <select id="transactionCategory" name="categoria" required>
+                        <option value="">Seleccionar categoría</option>
+                        <optgroup label="Gastos" id="expenseCategories">
+                            <option value="Alimentación">Alimentación</option>
+                            <option value="Transporte">Transporte</option>
+                            <option value="Entretenimiento">Entretenimiento</option>
+                            <option value="Salud">Salud</option>
+                            <option value="Educación">Educación</option>
+                            <option value="Hogar">Hogar</option>
+                            <option value="Ropa">Ropa</option>
+                            <option value="Servicios">Servicios</option>
+                            <option value="Otros Gastos">Otros Gastos</option>
+                        </optgroup>
+                        <optgroup label="Ingresos" id="incomeCategories" style="display: none;">
+                            <option value="Salario">Salario</option>
+                            <option value="Freelance">Freelance</option>
+                            <option value="Inversiones">Inversiones</option>
+                            <option value="Bonos">Bonos</option>
+                            <option value="Otros Ingresos">Otros Ingresos</option>
+                        </optgroup>
+                    </select>
+                </div>
+                
+                <div class="form-group form-enhanced">
+                    <label for="transactionDescription">
+                        <i class="fas fa-edit"></i>
+                        Descripción
+                    </label>
+                    <textarea id="transactionDescription" name="descripcion" rows="3" required placeholder="Describe tu transacción..."></textarea>
+                </div>
+                
+                <!-- Botones del formulario -->
+                <div class="modal-footer modal-enhanced-footer">
+                    <button type="button" onclick="closeTransactionModal()" class="btn btn-ghost">
+                        <i class="fas fa-times"></i>
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary btn-enhanced">
+                        <span class="btn-text">
+                            <i class="fas fa-save"></i>
+                            Guardar
+                        </span>
+                        <span class="btn-loading" style="display: none;">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            Guardando...
+                        </span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmación para eliminar -->
+<div id="deleteModal" class="modal">
+    <div class="modal-content modal-small">
+        <div class="modal-header">
+            <h3>Confirmar Eliminación</h3>
+            <span class="close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <p>¿Estás seguro de que deseas eliminar esta transacción?</p>
+            <p><strong>Esta acción no se puede deshacer.</strong></p>
+        </div>
+        <div class="modal-actions">
+            <button onclick="closeDeleteModal()" class="btn btn-outline">Cancelar</button>
+            <button onclick="confirmDelete()" class="btn btn-danger">Eliminar</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let currentTransactionId = null;
+let transactionToDelete = null;
+
+// Inicializar página
+document.addEventListener('DOMContentLoaded', function() {
+    initializePage();
+    loadTransactions();
+});
+
+function initializePage() {
+    // Configurar fecha de hoy por defecto
+    document.getElementById('transactionDate').value = new Date().toISOString().split('T')[0];
+    
+    // Generar opciones de meses
+    generateMonthOptions();
+    
+    // Event listeners para radio buttons de tipo
+    document.querySelectorAll('input[name="tipo"]').forEach(radio => {
+        radio.addEventListener('change', toggleCategoryOptions);
+    });
+    
+    document.getElementById('transactionForm').addEventListener('submit', handleTransactionSubmit);
+    
+    // Event listener para cerrar modal de eliminación con la X
+    const deleteModalClose = document.querySelector('#deleteModal .close');
+    if (deleteModalClose) {
+        deleteModalClose.addEventListener('click', closeDeleteModal);
+    }
+    
+    // Cerrar modales al hacer clic fuera
+    window.addEventListener('click', function(e) {
+        if (e.target.classList.contains('modal-backdrop')) {
+            closeTransactionModal();
+        }
+        // Cerrar modal de eliminación al hacer clic fuera
+        if (e.target.id === 'deleteModal') {
+            closeDeleteModal();
+        }
+    });
+}
+
+function generateMonthOptions() {
+    const select = document.getElementById('monthFilter');
+    const currentDate = new Date();
+    
+    for (let i = 0; i < 12; i++) {
+        const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+        const value = date.toISOString().slice(0, 7); // YYYY-MM
+        const text = date.toLocaleDateString('es-ES', { year: 'numeric', month: 'long' });
+        
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = text.charAt(0).toUpperCase() + text.slice(1);
+        
+        if (i === 0) option.selected = true; // Mes actual por defecto
+        
+        select.appendChild(option);
+    }
+}
+
+function toggleCategoryOptions() {
+    const selectedType = document.querySelector('input[name="tipo"]:checked');
+    const type = selectedType ? selectedType.value : 'gasto';
+    const expenseCategories = document.getElementById('expenseCategories');
+    const incomeCategories = document.getElementById('incomeCategories');
+    const categorySelect = document.getElementById('transactionCategory');
+    
+    if (type === 'gasto') {
+        expenseCategories.style.display = 'block';
+        incomeCategories.style.display = 'none';
+    } else {
+        expenseCategories.style.display = 'none';
+        incomeCategories.style.display = 'block';
+    }
+    
+    // Resetear selección
+    categorySelect.value = '';
+}
+
+async function loadTransactions() {
+    showLoading();
+    try {
+        const month = document.getElementById('monthFilter').value;
+        const type = document.getElementById('typeFilter').value;
+        
+        let url = '/api/transactions?';
+        if (month) url += `month=${month}&`;
+        if (type) url += `tipo=${type}&`;
+        
+        const response = await fetch(url);
+        const transactions = await response.json();
+        
+        if (response.ok) {
+            displayTransactions(transactions);
+        } else {
+            showMessage('Error al cargar las transacciones', 'error');
+        }
+    } catch (error) {
+        showMessage('Error de conexión', 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+function displayTransactions(transactions) {
+    const container = document.getElementById('transactionsList');
+    
+    if (transactions.length === 0) {
+        container.innerHTML = '<div class="no-data">No se encontraron transacciones</div>';
+        return;
+    }
+    
+    container.innerHTML = transactions.map(transaction => `
+        <div class="transaction-card">
+            <div class="transaction-main">
+                <div class="transaction-info">
+                    <div class="transaction-header">
+                        <span class="transaction-category">${transaction.categoria}</span>
+                        <span class="transaction-type ${transaction.tipo}">${transaction.tipo}</span>
+                    </div>
+                    <div class="transaction-description">${transaction.descripcion}</div>
+                    <div class="transaction-date">${formatDate(transaction.fecha)}</div>
+                </div>
+                <div class="transaction-amount ${transaction.tipo}">
+                    ${transaction.tipo === 'ingreso' ? '+' : '-'}${formatCurrency(Math.abs(transaction.monto))}
+                </div>
+            </div>
+            <div class="transaction-actions">
+                <button onclick="editTransaction('${transaction.id}')" class="btn btn-sm btn-outline">
+                    ✏️ Editar
+                </button>
+                <button onclick="deleteTransaction('${transaction.id}')" class="btn btn-sm btn-danger">
+                    🗑️ Eliminar
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function applyFilters() {
+    loadTransactions();
+}
+
+function openAddTransactionModal() {
+    currentTransactionId = null;
+    document.getElementById('modalTitle').textContent = 'Agregar Transacción';
+    document.getElementById('transactionForm').reset();
+    document.getElementById('transactionDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('typeGasto').checked = true; // Seleccionar gasto por defecto
+    toggleCategoryOptions();
+    
+    const modal = document.getElementById('transactionModal');
+    modal.classList.add('show');
+    
+    // Foco en el primer campo
+    setTimeout(() => {
+        document.getElementById('transactionDate').focus();
+    }, 100);
+}
+
+function closeTransactionModal() {
+    const modal = document.getElementById('transactionModal');
+    const modalContent = modal.querySelector('.modal-enhanced-content');
+    
+    // Animación de salida
+    modalContent.style.animation = 'modalSlideOut 0.3s ease-in forwards';
+    
+    setTimeout(() => {
+        modal.classList.remove('show');
+        modalContent.style.animation = ''; // Resetear animación
+        currentTransactionId = null;
+    }, 300);
+}
+
+async function editTransaction(transactionId) {
+    try {
+        showLoading();
+        
+        // Obtener datos de la transacción
+        const response = await fetch('/api/transactions');
+        const transactions = await response.json();
+        const transaction = transactions.find(t => t.id === transactionId);
+        
+        if (!transaction) {
+            showMessage('Transacción no encontrada', 'error');
+            return;
+        }
+        
+        // Llenar el formulario
+        currentTransactionId = transactionId;
+        document.getElementById('modalTitle').textContent = 'Editar Transacción';
+        document.getElementById('transactionDate').value = transaction.fecha;
+        
+        // Seleccionar el tipo correcto
+        if (transaction.tipo === 'gasto') {
+            document.getElementById('typeGasto').checked = true;
+        } else {
+            document.getElementById('typeIngreso').checked = true;
+        }
+        
+        document.getElementById('transactionCategory').value = transaction.categoria;
+        document.getElementById('transactionAmount').value = transaction.monto;
+        document.getElementById('transactionDescription').value = transaction.descripcion;
+        
+        toggleCategoryOptions();
+        
+        const modal = document.getElementById('transactionModal');
+        modal.style.display = 'flex';
+        
+    } catch (error) {
+        showMessage('Error al cargar la transacción', 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+function deleteTransaction(transactionId) {
+    transactionToDelete = transactionId;
+    document.getElementById('deleteModal').style.display = 'block';
+}
+
+function closeDeleteModal() {
+    document.getElementById('deleteModal').style.display = 'none';
+    transactionToDelete = null;
+}
+
+async function confirmDelete() {
+    if (!transactionToDelete) return;
+    
+    try {
+        showLoading();
+        
+        const response = await fetch(`/api/transactions/${transactionToDelete}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showMessage('Transacción eliminada exitosamente', 'success');
+            closeDeleteModal();
+            loadTransactions();
+        } else {
+            showMessage(result.message || 'Error al eliminar la transacción', 'error');
+        }
+        
+    } catch (error) {
+        showMessage('Error de conexión', 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+async function handleTransactionSubmit(e) {
+    e.preventDefault();
+    console.log('=== INICIO DE SUBMIT ===');
+    
+    const form = e.target;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    
+    if (!submitBtn) {
+        console.error('No se encontró el botón submit');
+        return;
+    }
+    
+    const btnText = submitBtn.querySelector('.btn-text');
+    const btnLoading = submitBtn.querySelector('.btn-loading');
+    
+    console.log('Botón encontrado:', { submitBtn, btnText, btnLoading });
+    
+    // Mostrar loading
+    submitBtn.disabled = true;
+    if (btnText) btnText.style.display = 'none';
+    if (btnLoading) btnLoading.style.display = 'inline-flex';
+    
+    // Validar tipo seleccionado
+    const selectedType = document.querySelector('input[name="tipo"]:checked');
+    if (!selectedType) {
+        console.error('No hay tipo seleccionado');
+        alert('Por favor selecciona un tipo de transacción');
+        // Restaurar botón
+        submitBtn.disabled = false;
+        if (btnText) btnText.style.display = 'inline-flex';
+        if (btnLoading) btnLoading.style.display = 'none';
+        return;
+    }
+    
+    // Obtener datos del formulario
+    const formData = {
+        fecha: document.getElementById('transactionDate').value,
+        tipo: selectedType.value,
+        categoria: document.getElementById('transactionCategory').value,
+        monto: parseFloat(document.getElementById('transactionAmount').value),
+        descripcion: document.getElementById('transactionDescription').value
+    };
+    
+    console.log('Datos del formulario:', formData);
+    
+    try {
+        const url = currentTransactionId 
+            ? `/api/transactions/${currentTransactionId}`
+            : '/api/transactions';
+            
+        const method = currentTransactionId ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            const message = currentTransactionId 
+                ? 'Transacción actualizada exitosamente'
+                : 'Transacción agregada exitosamente';
+            console.log('Éxito:', message);
+            if (typeof showMessage === 'function') {
+                showMessage(message, 'success');
+            } else {
+                alert(message);
+            }
+            closeTransactionModal();
+            loadTransactions();
+        } else {
+            const errorMsg = result.message || 'Error al guardar la transacción';
+            console.error('Error del servidor:', errorMsg);
+            if (typeof showMessage === 'function') {
+                showMessage(errorMsg, 'error');
+            } else {
+                alert(errorMsg);
+            }
+        }
+        
+    } catch (error) {
+        console.error('Error de conexión:', error);
+        if (typeof showMessage === 'function') {
+            showMessage('Error de conexión', 'error');
+        } else {
+            alert('Error de conexión');
+        }
+    } finally {
+        // Ocultar loading
+        submitBtn.disabled = false;
+        if (btnText) btnText.style.display = 'inline-flex';
+        if (btnLoading) btnLoading.style.display = 'none';
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,463 @@
+{% extends "base.html" %}
+
+{% block title %}Gastos Fijos - Finanzas Personales{% endblock %}
+
+{% block content %}
+<div class="fixed-expenses-container">
+    <div class="page-header">
+        <h1>📅 Gastos Fijos</h1>
+        <button onclick="openAddExpenseModal()" class="btn btn-primary">
+            ➕ Agregar Gasto Fijo
+        </button>
+    </div>
+    
+    <div class="expenses-info">
+        <div class="info-card">
+            <p>Gestiona tus gastos recurrentes como renta, suscripciones, servicios y otros pagos regulares.</p>
+        </div>
+    </div>
+    
+    <div class="expenses-list">
+        <div id="expensesList">
+            <div class="loading-message">Cargando gastos fijos...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para agregar/editar gasto fijo -->
+<div id="expenseModal" class="modal modal-enhanced">
+    <div class="modal-backdrop" onclick="closeExpenseModal()"></div>
+    <div class="modal-content modal-enhanced-content">
+        <div class="modal-header modal-enhanced-header">
+            <div class="modal-title-section">
+                <div class="modal-icon">
+                    <i class="fas fa-calendar-check"></i>
+                </div>
+                <h3 id="modalTitle">Agregar Gasto Fijo</h3>
+            </div>
+            <button class="modal-close-btn" onclick="closeExpenseModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="modal-body modal-enhanced-body">
+            <form id="expenseForm">
+                <!-- Campos del formulario -->
+                <div class="form-grid">
+                    <div class="form-group form-enhanced">
+                        <label for="expenseCategory">
+                            <i class="fas fa-tags"></i>
+                            Categoría
+                        </label>
+                        <select id="expenseCategory" name="categoria" required>
+                            <option value="">Seleccionar categoría</option>
+                            <option value="Vivienda">🏠 Vivienda (Renta/Hipoteca)</option>
+                            <option value="Servicios">⚡ Servicios (Luz, Agua, Gas)</option>
+                            <option value="Telecomunicaciones">📱 Telecomunicaciones (Internet, Teléfono)</option>
+                            <option value="Suscripciones">📺 Suscripciones (Netflix, Spotify, etc.)</option>
+                            <option value="Seguros">🛡️ Seguros</option>
+                            <option value="Educación">🎓 Educación</option>
+                            <option value="Salud">🏥 Salud</option>
+                            <option value="Transporte">🚗 Transporte</option>
+                            <option value="Otros">📝 Otros</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group form-enhanced">
+                        <label for="expenseAmount">
+                            <i class="fas fa-dollar-sign"></i>
+                            Monto
+                        </label>
+                        <div class="amount-input-wrapper">
+                            <span class="currency-symbol">$</span>
+                            <input type="number" id="expenseAmount" name="monto" step="0.01" min="0" required placeholder="0.00">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group form-enhanced">
+                    <label for="expenseDescription">
+                        <i class="fas fa-edit"></i>
+                        Descripción
+                    </label>
+                    <textarea id="expenseDescription" name="descripcion" rows="3" required placeholder="Ej: Renta del departamento, Netflix Premium, etc."></textarea>
+                </div>
+                
+                <div class="form-grid">
+                    <div class="form-group form-enhanced">
+                        <label for="expenseDay">
+                            <i class="fas fa-calendar-day"></i>
+                            Día de Pago
+                        </label>
+                        <select id="expenseDay" name="dia_pago" required>
+                            <option value="">Seleccionar día</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group form-enhanced">
+                        <label for="expenseFrequency">
+                            <i class="fas fa-clock"></i>
+                            Frecuencia
+                        </label>
+                        <select id="expenseFrequency" name="frecuencia" required>
+                            <option value="mensual">📅 Mensual</option>
+                            <option value="trimestral">📆 Trimestral</option>
+                            <option value="semestral">🗓️ Semestral</option>
+                            <option value="anual">📋 Anual</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Botones del formulario -->
+                <div class="modal-footer modal-enhanced-footer">
+                    <button type="button" onclick="closeExpenseModal()" class="btn btn-ghost">
+                        <i class="fas fa-times"></i>
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary btn-enhanced">
+                        <span class="btn-text">
+                            <i class="fas fa-save"></i>
+                            Guardar
+                        </span>
+                        <span class="btn-loading" style="display: none;">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            Guardando...
+                        </span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmación para eliminar -->
+<div id="deleteModal" class="modal">
+    <div class="modal-content modal-small">
+        <div class="modal-header">
+            <h3>Confirmar Eliminación</h3>
+            <span class="close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <p>¿Estás seguro de que deseas eliminar este gasto fijo?</p>
+            <p><strong>Esta acción no se puede deshacer.</strong></p>
+        </div>
+        <div class="modal-actions">
+            <button onclick="closeDeleteModal()" class="btn btn-outline">Cancelar</button>
+            <button onclick="confirmDelete()" class="btn btn-danger">Eliminar</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let currentExpenseId = null;
+let expenseToDelete = null;
+
+// Inicializar página
+document.addEventListener('DOMContentLoaded', function() {
+    initializePage();
+    loadFixedExpenses();
+});
+
+function initializePage() {
+    // Generar opciones de días (1-31)
+    const daySelect = document.getElementById('expenseDay');
+    for (let i = 1; i <= 31; i++) {
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = i;
+        daySelect.appendChild(option);
+    }
+    
+    // Event listeners
+    document.getElementById('expenseForm').addEventListener('submit', handleExpenseSubmit);
+    
+    // Event listener para cerrar modal de eliminación con la X
+    const deleteModalClose = document.querySelector('#deleteModal .close');
+    if (deleteModalClose) {
+        deleteModalClose.addEventListener('click', closeDeleteModal);
+    }
+    
+    // Cerrar modales al hacer clic fuera
+    window.addEventListener('click', function(e) {
+        if (e.target.classList.contains('modal-backdrop')) {
+            closeExpenseModal();
+        }
+        // Cerrar modal de eliminación al hacer clic fuera
+        if (e.target.id === 'deleteModal') {
+            closeDeleteModal();
+        }
+    });
+}
+
+async function loadFixedExpenses() {
+    showLoading();
+    try {
+        const response = await fetch('/api/fixed-expenses');
+        const expenses = await response.json();
+        
+        if (response.ok) {
+            displayFixedExpenses(expenses);
+        } else {
+            showMessage('Error al cargar los gastos fijos', 'error');
+        }
+    } catch (error) {
+        showMessage('Error de conexión', 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+function displayFixedExpenses(expenses) {
+    const container = document.getElementById('expensesList');
+    
+    if (expenses.length === 0) {
+        container.innerHTML = '<div class="no-data">No tienes gastos fijos registrados</div>';
+        return;
+    }
+    
+    // Agrupar por categoría
+    const groupedExpenses = expenses.reduce((groups, expense) => {
+        const category = expense['categoría'];
+        if (!groups[category]) {
+            groups[category] = [];
+        }
+        groups[category].push(expense);
+        return groups;
+    }, {});
+    
+    container.innerHTML = Object.entries(groupedExpenses).map(([category, categoryExpenses]) => `
+        <div class="expense-category">
+            <h3 class="category-title">${category}</h3>
+            <div class="category-expenses">
+                ${categoryExpenses.map(expense => `
+                    <div class="expense-card">
+                        <div class="expense-main">
+                            <div class="expense-info">
+                                <div class="expense-description">${expense['descripción']}</div>
+                                <div class="expense-details">
+                                    <span class="expense-frequency">${expense.frecuencia}</span>
+                                    <span class="expense-day">Día ${expense['día pago']}</span>
+                                </div>
+                            </div>
+                            <div class="expense-amount">
+                                ${formatCurrency(expense.monto)}
+                            </div>
+                        </div>
+                        <div class="expense-actions">
+                            <button onclick="editExpense('${expense.id}')" class="btn btn-sm btn-outline">
+                                ✏️ Editar
+                            </button>
+                            <button onclick="deleteExpense('${expense.id}')" class="btn btn-sm btn-danger">
+                                🗑️ Eliminar
+                            </button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `).join('');
+    
+    // Mostrar total mensual
+    const monthlyTotal = expenses
+        .filter(expense => expense.frecuencia === 'mensual')
+        .reduce((total, expense) => total + expense.monto, 0);
+        
+    if (monthlyTotal > 0) {
+        container.innerHTML += `
+            <div class="total-summary">
+                <div class="total-card">
+                    <h3>Total Gastos Fijos Mensuales</h3>
+                    <div class="total-amount">${formatCurrency(monthlyTotal)}</div>
+                </div>
+            </div>
+        `;
+    }
+}
+
+function openAddExpenseModal() {
+    currentExpenseId = null;
+    document.getElementById('modalTitle').textContent = 'Agregar Gasto Fijo';
+    document.getElementById('expenseForm').reset();
+    
+    const modal = document.getElementById('expenseModal');
+    modal.classList.add('show');
+    
+    // Foco en el primer campo
+    setTimeout(() => {
+        document.getElementById('expenseCategory').focus();
+    }, 100);
+}
+
+function closeExpenseModal() {
+    const modal = document.getElementById('expenseModal');
+    const modalContent = modal.querySelector('.modal-enhanced-content');
+    
+    // Animación de salida
+    modalContent.style.animation = 'modalSlideOut 0.3s ease-in forwards';
+    
+    setTimeout(() => {
+        modal.classList.remove('show');
+        modalContent.style.animation = ''; // Resetear animación
+        currentExpenseId = null;
+    }, 300);
+}
+
+async function editExpense(expenseId) {
+    try {
+        showLoading();
+        
+        // Obtener datos del gasto fijo
+        const response = await fetch('/api/fixed-expenses');
+        const expenses = await response.json();
+        const expense = expenses.find(e => e.id === expenseId);
+        
+        if (!expense) {
+            showMessage('Gasto fijo no encontrado', 'error');
+            return;
+        }
+        
+        // Llenar el formulario
+        currentExpenseId = expenseId;
+        document.getElementById('modalTitle').textContent = 'Editar Gasto Fijo';
+        document.getElementById('expenseCategory').value = expense['categoría'];
+        document.getElementById('expenseAmount').value = expense.monto;
+        document.getElementById('expenseDescription').value = expense['descripción'];
+        document.getElementById('expenseDay').value = expense['día pago'];
+        document.getElementById('expenseFrequency').value = expense.frecuencia;
+        
+        const modal = document.getElementById('expenseModal');
+        modal.style.display = 'flex';
+        
+    } catch (error) {
+        showMessage('Error al cargar el gasto fijo', 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+function deleteExpense(expenseId) {
+    expenseToDelete = expenseId;
+    document.getElementById('deleteModal').style.display = 'block';
+}
+
+function closeDeleteModal() {
+    document.getElementById('deleteModal').style.display = 'none';
+    expenseToDelete = null;
+}
+
+async function confirmDelete() {
+    if (!expenseToDelete) return;
+    
+    try {
+        showLoading();
+        
+        const response = await fetch(`/api/fixed-expenses/${expenseToDelete}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showMessage('Gasto fijo eliminado exitosamente', 'success');
+            closeDeleteModal();
+            loadFixedExpenses();
+        } else {
+            showMessage(result.message || 'Error al eliminar el gasto fijo', 'error');
+        }
+        
+    } catch (error) {
+        showMessage('Error de conexión', 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+async function handleExpenseSubmit(e) {
+    e.preventDefault();
+    console.log('=== INICIO DE SUBMIT GASTO FIJO ===');
+    
+    const form = e.target;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    
+    if (!submitBtn) {
+        console.error('No se encontró el botón submit');
+        return;
+    }
+    
+    const btnText = submitBtn.querySelector('.btn-text');
+    const btnLoading = submitBtn.querySelector('.btn-loading');
+    
+    console.log('Botón encontrado:', { submitBtn, btnText, btnLoading });
+    
+    // Mostrar loading
+    submitBtn.disabled = true;
+    if (btnText) btnText.style.display = 'none';
+    if (btnLoading) btnLoading.style.display = 'inline-flex';
+    
+    const formData = {
+        categoria: document.getElementById('expenseCategory').value,
+        monto: parseFloat(document.getElementById('expenseAmount').value),
+        descripcion: document.getElementById('expenseDescription').value,
+        dia_pago: parseInt(document.getElementById('expenseDay').value),
+        frecuencia: document.getElementById('expenseFrequency').value
+    };
+    
+    console.log('Datos del formulario:', formData);
+    
+    try {
+        const url = currentExpenseId 
+            ? `/api/fixed-expenses/${currentExpenseId}`
+            : '/api/fixed-expenses';
+            
+        const method = currentExpenseId ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            const message = currentExpenseId 
+                ? 'Gasto fijo actualizado exitosamente'
+                : 'Gasto fijo agregado exitosamente';
+            console.log('Éxito:', message);
+            if (typeof showMessage === 'function') {
+                showMessage(message, 'success');
+            } else {
+                alert(message);
+            }
+            closeExpenseModal();
+            loadFixedExpenses();
+        } else {
+            const errorMsg = result.message || 'Error al guardar el gasto fijo';
+            console.error('Error del servidor:', errorMsg);
+            if (typeof showMessage === 'function') {
+                showMessage(errorMsg, 'error');
+            } else {
+                alert(errorMsg);
+            }
+        }
+        
+    } catch (error) {
+        console.error('Error de conexión:', error);
+        if (typeof showMessage === 'function') {
+            showMessage('Error de conexión', 'error');
+        } else {
+            alert('Error de conexión');
+        }
+    } finally {
+        // Ocultar loading
+        submitBtn.disabled = false;
+        if (btnText) btnText.style.display = 'inline-flex';
+        if (btnLoading) btnLoading.style.display = 'none';
+    }
+}
+</script>
+{% endblock %}

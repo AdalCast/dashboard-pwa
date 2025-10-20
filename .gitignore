@@ -1,0 +1,60 @@
+# Ignorar archivos del entorno virtual
+venv/
+env/
+.venv/
+.env/
+
+# Ignorar archivos de Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Ignorar archivos del IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Ignorar archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Ignorar logs
+*.log
+
+# Ignorar archivos temporales
+tmp/
+temp/
+
+# Ignorar archivos de configuración local (NO subir credenciales a Git)
+.env
+.env.local
+.env.production
+
+# Ignorar archivos de deployment
+.vercel/
+.netlify/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/

@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+
+{% block title %}Perfil - Finanzas Personales{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+    <div class="page-header">
+        <h1>👤 Mi Perfil</h1>
+        <p>Configura tus preferencias y datos personales</p>
+    </div>
+    
+    <div class="profile-content">
+        <div class="profile-section">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Información Personal</h3>
+                </div>
+                <div class="card-body">
+                    <form id="profileForm">
+                        <div class="form-group">
+                            <label for="userName">Nombre Completo:</label>
+                            <input type="text" id="userName" name="nombre_completo" placeholder="Ej: Juan Pérez García">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="userEmail">Correo Electrónico:</label>
+                            <input type="email" id="userEmail" name="correo" readonly>
+                            <small class="form-text">El correo no se puede modificar</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="userPhone">Teléfono:</label>
+                            <input type="tel" id="userPhone" name="telefono" placeholder="Ej: +52 555 123 4567">
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <span class="btn-text">Actualizar Información</span>
+                            <span class="btn-loading" style="display: none;">Actualizando...</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="profile-section">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Preferencias de Reportes</h3>
+                    <p>Configura cuándo quieres recibir reportes automáticos de tus finanzas</p>
+                </div>
+                <div class="card-body">
+                    <form id="preferencesForm">
+                        <div class="preference-item">
+                            <div class="preference-info">
+                                <h4>Reporte Diario</h4>
+                                <p>Recibe un resumen diario de tus transacciones</p>
+                            </div>
+                            <div class="preference-control">
+                                <label class="switch">
+                                    <input type="checkbox" id="reporteDiario" name="reporte_diario">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="preference-item">
+                            <div class="preference-info">
+                                <h4>Reporte Semanal</h4>
+                                <p>Recibe un resumen semanal de tus finanzas</p>
+                            </div>
+                            <div class="preference-control">
+                                <label class="switch">
+                                    <input type="checkbox" id="reporteSemanal" name="reporte_semanal">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="preference-item">
+                            <div class="preference-info">
+                                <h4>Reporte Mensual</h4>
+                                <p>Recibe un análisis detallado mensual</p>
+                            </div>
+                            <div class="preference-control">
+                                <label class="switch">
+                                    <input type="checkbox" id="reporteMensual" name="reporte_mensual">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <span class="btn-text">Guardar Preferencias</span>
+                            <span class="btn-loading" style="display: none;">Guardando...</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="profile-section">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Acciones de Cuenta</h3>
+                </div>
+                <div class="card-body">
+                    <div class="account-actions">
+                        <button onclick="logout()" class="btn btn-danger">
+                            🚪 Cerrar Sesión
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Inicializar página
+document.addEventListener('DOMContentLoaded', function() {
+    loadProfile();
+    initializeEventListeners();
+});
+
+function initializeEventListeners() {
+    document.getElementById('profileForm').addEventListener('submit', handleProfileSubmit);
+    document.getElementById('preferencesForm').addEventListener('submit', handlePreferencesSubmit);
+}
+
+async function loadProfile() {
+    showLoading();
+    try {
+        const response = await fetch('/api/profile');
+        const profile = await response.json();
+        
+        if (response.ok) {
+            populateProfileForm(profile);
+        } else {
+            showMessage('Error al cargar el perfil', 'error');
+        }
+    } catch (error) {
+        showMessage('Error de conexión', 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+function populateProfileForm(profile) {
+    // Información personal
+    document.getElementById('userName').value = profile.full_name || '';
+    document.getElementById('userEmail').value = profile.correo || '';
+    document.getElementById('userPhone').value = profile.telefono || '';
+    
+    // Preferencias de reportes (convertir string 'true'/'false' a boolean)
+    document.getElementById('reporteDiario').checked = profile.reporte_diario === 'true' || profile.reporte_diario === true;
+    document.getElementById('reporteSemanal').checked = profile.reporte_semanal === 'true' || profile.reporte_semanal === true;
+    document.getElementById('reporteMensual').checked = profile.reporte_mensual === 'true' || profile.reporte_mensual === true;
+}
+
+async function handleProfileSubmit(e) {
+    e.preventDefault();
+    
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const btnText = submitBtn.querySelector('.btn-text');
+    const btnLoading = submitBtn.querySelector('.btn-loading');
+    
+    // Mostrar loading
+    submitBtn.disabled = true;
+    btnText.style.display = 'none';
+    btnLoading.style.display = 'inline';
+    
+    const formData = {
+        full_name: document.getElementById('userName').value,
+        telefono: document.getElementById('userPhone').value
+    };
+    
+    try {
+        const response = await fetch('/api/profile', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showMessage('Información actualizada exitosamente', 'success');
+        } else {
+            showMessage(result.message || 'Error al actualizar la información', 'error');
+        }
+        
+    } catch (error) {
+        showMessage('Error de conexión', 'error');
+    } finally {
+        // Ocultar loading
+        submitBtn.disabled = false;
+        btnText.style.display = 'inline';
+        btnLoading.style.display = 'none';
+    }
+}
+
+async function handlePreferencesSubmit(e) {
+    e.preventDefault();
+    
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const btnText = submitBtn.querySelector('.btn-text');
+    const btnLoading = submitBtn.querySelector('.btn-loading');
+    
+    // Mostrar loading
+    submitBtn.disabled = true;
+    btnText.style.display = 'none';
+    btnLoading.style.display = 'inline';
+    
+    const formData = {
+        telefono: document.getElementById('userPhone').value, // Mantener teléfono
+        reporte_diario: document.getElementById('reporteDiario').checked,
+        reporte_semanal: document.getElementById('reporteSemanal').checked,
+        reporte_mensual: document.getElementById('reporteMensual').checked
+    };
+    
+    try {
+        const response = await fetch('/api/profile', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showMessage('Preferencias guardadas exitosamente', 'success');
+        } else {
+            showMessage(result.message || 'Error al guardar las preferencias', 'error');
+        }
+        
+    } catch (error) {
+        showMessage('Error de conexión', 'error');
+    } finally {
+        // Ocultar loading
+        submitBtn.disabled = false;
+        btnText.style.display = 'inline';
+        btnLoading.style.display = 'none';
+    }
+}
+</script>
+{% endblock %}

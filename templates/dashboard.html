@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Finanzas Personales{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <div class="header-content">
+            <h1>📊 Dashboard</h1>
+            <p>Resumen de tus finanzas</p>
+        </div>
+        <div class="month-selector">
+            <label for="monthSelect">Mes:</label>
+            <select id="monthSelect" onchange="loadDashboardData()">
+                <!-- Las opciones se generarán dinámicamente -->
+            </select>
+        </div>
+    </div>
+    
+    <div class="summary-cards">
+        <div class="summary-card income">
+            <div class="card-icon">📈</div>
+            <div class="card-content">
+                <h3>Ingresos</h3>
+                <p class="amount" id="totalIngresos">$0.00</p>
+            </div>
+        </div>
+        
+        <div class="summary-card expense">
+            <div class="card-icon">📉</div>
+            <div class="card-content">
+                <h3>Gastos</h3>
+                <p class="amount" id="totalGastos">$0.00</p>
+            </div>
+        </div>
+        
+        <div class="summary-card balance">
+            <div class="card-icon">💰</div>
+            <div class="card-content">
+                <h3>Balance</h3>
+                <p class="amount" id="balance">$0.00</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="dashboard-content">
+        <div class="chart-section">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Gastos por Categoría</h3>
+                </div>
+                <div class="card-body">
+                    <canvas id="expenseChart" width="400" height="200"></canvas>
+                    <div id="noDataMessage" style="display: none; text-align: center; padding: 40px;">
+                        <p>No hay datos de gastos para mostrar este mes</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="recent-transactions">
+            <div class="card">
+                <div class="card-header">
+                    <h3 id="recentTransactionsTitle">Transacciones del Mes</h3>
+                    <a href="/transactions" class="btn btn-outline btn-sm">Ver todas</a>
+                </div>
+                <div class="card-body">
+                    <div id="recentTransactionsList">
+                        <div class="loading-message">Cargando transacciones...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let expenseChart = null;
+
+async function loadDashboardData() {
+    showLoading();
+    try {
+        const selectedMonth = document.getElementById('monthSelect').value;
+        let url = '/api/dashboard-summary';
+        if (selectedMonth) {
+            url += `?month=${selectedMonth}`;
+        }
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (response.ok) {
+            updateSummaryCards(data);
+            updateExpenseChart(data.gastos_por_categoria);
+            updateRecentTransactions(data.ultimas_transacciones);
+            updateDashboardTitle(selectedMonth);
+        } else {
+            showMessage('No se pudieron cargar los datos financieros. Intenta refrescar la página.', 'error');
+        }
+    } catch (error) {
+        showMessage('Problema de conexión. Verifica tu internet y vuelve a intentarlo.', 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+function updateSummaryCards(data) {
+    document.getElementById('totalIngresos').textContent = formatCurrency(data.total_ingresos);
+    document.getElementById('totalGastos').textContent = formatCurrency(data.total_gastos);
+    
+    const balanceElement = document.getElementById('balance');
+    balanceElement.textContent = formatCurrency(data.balance);
+    
+    // Cambiar color según si es positivo o negativo
+    const balanceCard = balanceElement.closest('.summary-card');
+    if (data.balance >= 0) {
+        balanceCard.classList.remove('negative');
+        balanceCard.classList.add('positive');
+    } else {
+        balanceCard.classList.remove('positive');
+        balanceCard.classList.add('negative');
+    }
+}
+
+function updateExpenseChart(gastosPorCategoria) {
+    const ctx = document.getElementById('expenseChart').getContext('2d');
+    
+    if (Object.keys(gastosPorCategoria).length === 0) {
+        document.getElementById('expenseChart').style.display = 'none';
+        document.getElementById('noDataMessage').style.display = 'block';
+        return;
+    }
+    
+    document.getElementById('expenseChart').style.display = 'block';
+    document.getElementById('noDataMessage').style.display = 'none';
+    
+    if (expenseChart) {
+        expenseChart.destroy();
+    }
+    
+    const labels = Object.keys(gastosPorCategoria);
+    const data = Object.values(gastosPorCategoria);
+    const colors = generateColors(labels.length);
+    
+    expenseChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: colors,
+                borderWidth: 2,
+                borderColor: '#ffffff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const value = context.parsed;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return `${context.label}: ${formatCurrency(value)} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function updateRecentTransactions(transactions) {
+    const container = document.getElementById('recentTransactionsList');
+    
+    if (transactions.length === 0) {
+        container.innerHTML = '<div class="no-data">No hay transacciones recientes</div>';
+        return;
+    }
+    
+    container.innerHTML = transactions.map(transaction => `
+        <div class="transaction-item">
+            <div class="transaction-info">
+                <div class="transaction-category">${transaction.categoria}</div>
+                <div class="transaction-description">${transaction.descripcion}</div>
+                <div class="transaction-date">${formatDate(transaction.fecha)}</div>
+            </div>
+            <div class="transaction-amount ${transaction.tipo}">
+                ${transaction.tipo === 'ingreso' ? '+' : '-'}${formatCurrency(Math.abs(transaction.monto))}
+            </div>
+        </div>
+    `).join('');
+}
+
+function generateColors(count) {
+    const colors = [
+        '#4f46e5', '#06b6d4', '#10b981', '#f59e0b',
+        '#ef4444', '#8b5cf6', '#ec4899', '#6b7280',
+        '#84cc16', '#f97316', '#3b82f6', '#14b8a6'
+    ];
+    
+    const result = [];
+    for (let i = 0; i < count; i++) {
+        result.push(colors[i % colors.length]);
+    }
+    return result;
+}
+
+function generateMonthOptions() {
+    const select = document.getElementById('monthSelect');
+    const currentDate = new Date();
+    
+    // Limpiar opciones existentes
+    select.innerHTML = '';
+    
+    // Generar opciones para los últimos 12 meses
+    for (let i = 0; i < 12; i++) {
+        const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+        const value = date.toISOString().slice(0, 7); // YYYY-MM
+        const text = date.toLocaleDateString('es-ES', { year: 'numeric', month: 'long' });
+        
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = text.charAt(0).toUpperCase() + text.slice(1);
+        
+        // Seleccionar el mes actual por defecto
+        if (i === 0) {
+            option.selected = true;
+        }
+        
+        select.appendChild(option);
+    }
+}
+
+function updateDashboardTitle(selectedMonth) {
+    const headerElement = document.querySelector('.dashboard-header p');
+    const transactionsTitle = document.getElementById('recentTransactionsTitle');
+    
+    if (selectedMonth) {
+        // Crear fecha evitando problemas de zona horaria
+        const [year, month] = selectedMonth.split('-');
+        const date = new Date(parseInt(year), parseInt(month) - 1, 15); // Usar día 15 para evitar problemas de zona horaria
+        const monthName = date.toLocaleDateString('es-ES', { year: 'numeric', month: 'long' });
+        const formattedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+        
+        headerElement.textContent = `Resumen de finanzas - ${formattedMonth}`;
+        
+        // Verificar si es el mes actual
+        const currentMonth = new Date().toISOString().slice(0, 7);
+        if (selectedMonth === currentMonth) {
+            transactionsTitle.textContent = 'Transacciones Recientes';
+        } else {
+            transactionsTitle.textContent = `Transacciones de ${formattedMonth}`;
+        }
+    } else {
+        headerElement.textContent = 'Resumen de tus finanzas del mes actual';
+        transactionsTitle.textContent = 'Transacciones Recientes';
+    }
+}
+
+// Cargar datos al inicializar la página
+document.addEventListener('DOMContentLoaded', function() {
+    generateMonthOptions();
+    loadDashboardData();
+    
+    // Actualizar cada 5 minutos solo si está en el mes actual
+    setInterval(() => {
+        const selectedMonth = document.getElementById('monthSelect').value;
+        const currentMonth = new Date().toISOString().slice(0, 7);
+        if (selectedMonth === currentMonth) {
+            loadDashboardData();
+        }
+    }, 300000);
+});
+</script>
+{% endblock %}
