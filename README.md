@@ -274,5 +274,3 @@ DashboardPWA/
 Este proyecto es de código libre para uso personal y educativo.
 
 ---
-
-¡Tu PWA de finanzas personales está lista para usar! 🚀
