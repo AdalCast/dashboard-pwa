@@ -304,6 +304,30 @@ body {
     color: var(--gray-color);
 }
 
+.register-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 600;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.register-link:hover {
+    color: var(--primary-dark);
+    text-decoration: underline;
+}
+
+.register-link::after {
+    content: '→';
+    transition: transform 0.2s ease;
+}
+
+.register-link:hover::after {
+    transform: translateX(3px);
+}
+
 /* Dashboard */
 .dashboard-container {
     max-width: 1200px;
