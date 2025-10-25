@@ -25,8 +25,8 @@
 </div>
 
 <!-- Modal para agregar/editar gasto fijo -->
-<div id="expenseModal" class="modal modal-enhanced">
-    <div class="modal-backdrop" onclick="closeExpenseModal()"></div>
+<div id="expenseModal" class="modal modal-enhanced" style="display: none;">
+    <div class="modal-backdrop"></div>
     <div class="modal-content modal-enhanced-content">
         <div class="modal-header modal-enhanced-header">
             <div class="modal-title-section">
@@ -35,7 +35,7 @@
                 </div>
                 <h3 id="modalTitle">Agregar Gasto Fijo</h3>
             </div>
-            <button class="modal-close-btn" onclick="closeExpenseModal()">
+            <button class="modal-close-btn" id="closeExpenseModalBtn">
                 <i class="fas fa-times"></i>
             </button>
         </div>
@@ -173,20 +173,50 @@ function initializePage() {
     // Event listeners
     document.getElementById('expenseForm').addEventListener('submit', handleExpenseSubmit);
     
+    // Event listener para cerrar modal de gastos fijos con el botón X
+    const closeExpenseBtn = document.getElementById('closeExpenseModalBtn');
+    if (closeExpenseBtn) {
+        closeExpenseBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeExpenseModal();
+        });
+    }
+    
     // Event listener para cerrar modal de eliminación con la X
     const deleteModalClose = document.querySelector('#deleteModal .close');
     if (deleteModalClose) {
         deleteModalClose.addEventListener('click', closeDeleteModal);
     }
     
-    // Cerrar modales al hacer clic fuera
+    // Cerrar modal de gastos fijos al hacer clic fuera (solo en el backdrop, no en el contenido)
+    const expenseModal = document.getElementById('expenseModal');
+    if (expenseModal) {
+        expenseModal.addEventListener('click', function(e) {
+            if (e.target === expenseModal || e.target.classList.contains('modal-backdrop')) {
+                closeExpenseModal();
+            }
+        });
+    }
+    
+    // Cerrar modal de eliminación al hacer clic fuera
     window.addEventListener('click', function(e) {
-        if (e.target.classList.contains('modal-backdrop')) {
-            closeExpenseModal();
-        }
-        // Cerrar modal de eliminación al hacer clic fuera
         if (e.target.id === 'deleteModal') {
             closeDeleteModal();
+        }
+    });
+    
+    // Cerrar modales con tecla ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const expenseModal = document.getElementById('expenseModal');
+            if (expenseModal && expenseModal.style.display !== 'none') {
+                closeExpenseModal();
+            }
+            const deleteModal = document.getElementById('deleteModal');
+            if (deleteModal && deleteModal.style.display === 'block') {
+                closeDeleteModal();
+            }
         }
     });
 }
@@ -282,7 +312,7 @@ function openAddExpenseModal() {
     document.getElementById('expenseForm').reset();
     
     const modal = document.getElementById('expenseModal');
-    modal.classList.add('show');
+    modal.style.display = 'block';
     
     // Foco en el primer campo
     setTimeout(() => {
@@ -291,17 +321,28 @@ function openAddExpenseModal() {
 }
 
 function closeExpenseModal() {
+    console.log('Cerrando modal de gasto fijo');
     const modal = document.getElementById('expenseModal');
-    const modalContent = modal.querySelector('.modal-enhanced-content');
     
-    // Animación de salida
-    modalContent.style.animation = 'modalSlideOut 0.3s ease-in forwards';
+    // Ocultar el modal inmediatamente
+    modal.style.display = 'none';
     
-    setTimeout(() => {
-        modal.classList.remove('show');
-        modalContent.style.animation = ''; // Resetear animación
-        currentExpenseId = null;
-    }, 300);
+    // Limpiar el formulario
+    const form = document.getElementById('expenseForm');
+    if (form) {
+        form.reset();
+        // Limpiar mensajes de validación de HTML5
+        const inputs = form.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            input.setCustomValidity('');
+        });
+    }
+    
+    // Resetear el ID de gasto actual
+    currentExpenseId = null;
+    
+    // Resetear el título del modal
+    document.getElementById('modalTitle').textContent = 'Agregar Gasto Fijo';
 }
 
 async function editExpense(expenseId) {
@@ -328,7 +369,7 @@ async function editExpense(expenseId) {
         document.getElementById('expenseFrequency').value = expense.frecuencia;
         
         const modal = document.getElementById('expenseModal');
-        modal.style.display = 'flex';
+        modal.style.display = 'block';
         
     } catch (error) {
         showMessage('Error al cargar el gasto fijo', 'error');

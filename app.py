@@ -379,7 +379,7 @@ def add_fixed_expense():
             'teléfono': user_phone,
             'día pago': int(data['dia_pago']),
             'categoría': data['categoria'],
-            'monto': int(float(data['monto'])),
+            'monto': abs(int(float(data['monto']))),  # Asegurar que sea positivo
             'descripción': data['descripcion'],
             'frecuencia': data['frecuencia'],
             'tipo': 'gasto_fijo'
@@ -407,37 +407,62 @@ def update_fixed_expense(expense_id):
         user_id = session['user_id']
         data = request.get_json()
         
+        print(f"=== UPDATE GASTO FIJO ===")
+        print(f"expense_id: {expense_id}")
+        print(f"user_id: {user_id}")
+        print(f"data recibida: {data}")
+        
+        # Validar datos de entrada
+        if not data:
+            return jsonify({'success': False, 'error': 'No se recibieron datos'}), 400
+            
+        required_fields = ['categoria', 'monto', 'descripcion', 'dia_pago', 'frecuencia']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'success': False, 'error': f'Campo requerido faltante: {field}'}), 400
+        
         # Obtener teléfono del usuario
         user_response = supabase.table('Usuarios').select('telefono').eq('id', user_id).execute()
         if not user_response.data:
-            return jsonify({'error': 'Usuario no encontrado'}), 404
+            return jsonify({'success': False, 'error': 'Usuario no encontrado'}), 404
             
         user_phone = user_response.data[0]['telefono']
+        print(f"user_phone: {user_phone}")
         
         # Verificar que el gasto fijo pertenece al usuario
         check_response = supabase.table('Gastos fijos').select('*').eq('id', expense_id).eq('teléfono', user_phone).execute()
         
         if not check_response.data:
-            return jsonify({'error': 'Gasto fijo no encontrado'}), 404
+            return jsonify({'success': False, 'error': 'Gasto fijo no encontrado o no tienes permisos'}), 404
+        
+        print(f"Gasto fijo encontrado: {check_response.data[0]}")
         
         update_data = {
             'día pago': int(data['dia_pago']),
             'categoría': data['categoria'],
-            'monto': int(float(data['monto'])),
+            'monto': abs(int(float(data['monto']))),  # Asegurar que sea positivo
             'descripción': data['descripcion'],
             'frecuencia': data['frecuencia']
         }
         
+        print(f"update_data: {update_data}")
+        
         response = supabase.table('Gastos fijos').update(update_data).eq('id', expense_id).execute()
+        
+        print(f"Respuesta de Supabase: {response.data}")
         
         return jsonify({
             'success': True,
             'message': 'Gasto fijo actualizado exitosamente',
-            'data': response.data[0]
+            'data': response.data[0] if response.data else None
         })
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print(f"Error en update_fixed_expense: {str(e)}")
+        print(f"Tipo de error: {type(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/fixed-expenses/<expense_id>', methods=['DELETE'])
 @login_required

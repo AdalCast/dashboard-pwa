@@ -41,8 +41,8 @@
 </div>
 
 <!-- Modal para agregar/editar transacción -->
-<div id="transactionModal" class="modal modal-enhanced">
-    <div class="modal-backdrop" onclick="closeTransactionModal()"></div>
+<div id="transactionModal" class="modal modal-enhanced" style="display: none;">
+    <div class="modal-backdrop"></div>
     <div class="modal-content modal-enhanced-content">
         <div class="modal-header modal-enhanced-header">
             <div class="modal-title-section">
@@ -51,7 +51,7 @@
                 </div>
                 <h3 id="modalTitle">Agregar Transacción</h3>
             </div>
-            <button class="modal-close-btn" onclick="closeTransactionModal()">
+            <button type="button" class="modal-close-btn" id="closeTransactionModalBtn">
                 <i class="fas fa-times"></i>
             </button>
         </div>
@@ -93,7 +93,7 @@
                         </label>
                         <div class="amount-input-wrapper">
                             <span class="currency-symbol">$</span>
-                            <input type="number" id="transactionAmount" name="monto" step="0.01" min="0" required placeholder="0.00">
+                            <input type="number" id="transactionAmount" name="monto" step="0.01" required placeholder="0.00">
                         </div>
                     </div>
                 </div>
@@ -200,20 +200,50 @@ function initializePage() {
     
     document.getElementById('transactionForm').addEventListener('submit', handleTransactionSubmit);
     
+    // Event listener para cerrar modal de transacción con el botón X
+    const closeTransactionBtn = document.getElementById('closeTransactionModalBtn');
+    if (closeTransactionBtn) {
+        closeTransactionBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeTransactionModal();
+        });
+    }
+    
     // Event listener para cerrar modal de eliminación con la X
     const deleteModalClose = document.querySelector('#deleteModal .close');
     if (deleteModalClose) {
         deleteModalClose.addEventListener('click', closeDeleteModal);
     }
     
-    // Cerrar modales al hacer clic fuera
+    // Cerrar modales al hacer clic fuera (solo en el backdrop, no en el contenido)
+    const transactionModal = document.getElementById('transactionModal');
+    if (transactionModal) {
+        transactionModal.addEventListener('click', function(e) {
+            if (e.target === transactionModal) {
+                closeTransactionModal();
+            }
+        });
+    }
+    
     window.addEventListener('click', function(e) {
-        if (e.target.classList.contains('modal-backdrop')) {
-            closeTransactionModal();
-        }
         // Cerrar modal de eliminación al hacer clic fuera
         if (e.target.id === 'deleteModal') {
             closeDeleteModal();
+        }
+    });
+    
+    // Cerrar modales con tecla ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const transactionModal = document.getElementById('transactionModal');
+            if (transactionModal && transactionModal.style.display !== 'none') {
+                closeTransactionModal();
+            }
+            const deleteModal = document.getElementById('deleteModal');
+            if (deleteModal && deleteModal.classList.contains('show')) {
+                closeDeleteModal();
+            }
         }
     });
 }
@@ -329,7 +359,7 @@ function openAddTransactionModal() {
     toggleCategoryOptions();
     
     const modal = document.getElementById('transactionModal');
-    modal.classList.add('show');
+    modal.style.display = 'block';
     
     // Foco en el primer campo
     setTimeout(() => {
@@ -338,17 +368,31 @@ function openAddTransactionModal() {
 }
 
 function closeTransactionModal() {
+    console.log('Cerrando modal de transacción');
     const modal = document.getElementById('transactionModal');
-    const modalContent = modal.querySelector('.modal-enhanced-content');
     
-    // Animación de salida
-    modalContent.style.animation = 'modalSlideOut 0.3s ease-in forwards';
+    // Ocultar el modal inmediatamente
+    modal.style.display = 'none';
     
-    setTimeout(() => {
-        modal.classList.remove('show');
-        modalContent.style.animation = ''; // Resetear animación
-        currentTransactionId = null;
-    }, 300);
+    // Limpiar el formulario
+    const form = document.getElementById('transactionForm');
+    if (form) {
+        form.reset();
+        // Limpiar mensajes de validación de HTML5
+        const inputs = form.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            input.setCustomValidity('');
+        });
+    }
+    
+    // Resetear el ID de transacción actual
+    currentTransactionId = null;
+    
+    // Resetear el título del modal
+    document.getElementById('modalTitle').textContent = 'Nueva Transacción';
+    
+    // Configurar fecha de hoy por defecto
+    document.getElementById('transactionDate').value = new Date().toISOString().split('T')[0];
 }
 
 async function editTransaction(transactionId) {
@@ -384,7 +428,7 @@ async function editTransaction(transactionId) {
         toggleCategoryOptions();
         
         const modal = document.getElementById('transactionModal');
-        modal.style.display = 'flex';
+        modal.style.display = 'block';
         
     } catch (error) {
         showMessage('Error al cargar la transacción', 'error');
